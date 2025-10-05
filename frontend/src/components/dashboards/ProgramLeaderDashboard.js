@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import API from "../../api"
-import "../styles/dashboards.css"
+import "../styles/leader.css"
 
 const ProgramLeaderDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview")

@@ -3,7 +3,7 @@
 // Updated StudentDashboard.js
 import { useState, useEffect } from "react"
 import API from "../../api"
-import "../styles/dashboards.css"
+import "../styles/student.css"
 
 const StudentDashboard = () => {
   const [reports, setReports] = useState([])

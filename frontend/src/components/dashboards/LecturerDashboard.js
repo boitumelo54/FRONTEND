@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "../../contexts/AuthContext"
 import API from "../../api"
-import "../styles/dashboards.css"
+import "../styles/lecture.css"
+
 
 const LecturerDashboard = () => {
   const [reports, setReports] = useState([])
