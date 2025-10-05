@@ -34,13 +34,22 @@ const Navigation = () => {
 
   const getRoleBadgeColor = (role) => {
     const colors = {
-      student: "#60a5fa",
-      lecturer: "#34d399",
-      'principal-lecturer': "#f59e0b",
-      'program-leader': "#a78bfa",
-      admin: "#ef4444"
+      student: "#60a5fa",        // Blue
+      lecturer: "#34d399",       // Green
+      'principal-lecturer': "#f59e0b", // Amber
+      'program-leader': "#a78bfa" // Purple
     };
     return colors[role?.toLowerCase()] || "#6b7280";
+  };
+
+  const getRoleIcon = (role) => {
+    const icons = {
+      student: "🎓",
+      lecturer: "👨‍🏫",
+      'principal-lecturer': "⭐",
+      'program-leader': "👑"
+    };
+    return icons[role?.toLowerCase()] || "👤";
   };
 
   return (
@@ -48,10 +57,10 @@ const Navigation = () => {
       <div className="nav-container">
         {/* Logo */}
         <Link to="/" className="nav-logo">
-          <div className="logo-icon">🎓</div>
+          <div className="logo-icon">📚</div>
           <div className="logo-text">
             <span className="logo-primary">Edu</span>
-            <span className="logo-secondary">Platform</span>
+            <span className="logo-secondary">Track</span>
           </div>
         </Link>
 
@@ -59,16 +68,14 @@ const Navigation = () => {
         <div className="nav-links">
           {isAuthenticated() ? (
             <>
-              <div className="nav-main-links">
-                <Link 
-                  to="/dashboard" 
-                  className={`nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`}
-                >
-                  <span className="nav-icon">📊</span>
-                  Dashboard
-                </Link>
-                
-              </div>
+              {/* Dashboard Link */}
+              <Link 
+                to="/dashboard" 
+                className={`nav-link dashboard-link ${location.pathname === '/dashboard' ? 'active' : ''}`}
+              >
+                <span className="nav-icon">📊</span>
+                Dashboard
+              </Link>
 
               {/* User Menu */}
               <div className="user-menu-container">
@@ -85,10 +92,15 @@ const Navigation = () => {
                       className="user-role-badge"
                       style={{ backgroundColor: getRoleBadgeColor(user?.role) }}
                     >
+                      <span className="role-icon">{getRoleIcon(user?.role)}</span>
                       {user?.role?.replace('-', ' ') || 'User'}
                     </span>
                   </div>
-                  <span className={`dropdown-arrow ${userMenuOpen ? 'open' : ''}`}>▼</span>
+                  <span className={`dropdown-arrow ${userMenuOpen ? 'open' : ''}`}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                      <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                    </svg>
+                  </span>
                 </button>
 
                 {userMenuOpen && (
@@ -104,6 +116,7 @@ const Navigation = () => {
                           className="user-role-badge large"
                           style={{ backgroundColor: getRoleBadgeColor(user?.role) }}
                         >
+                          <span className="role-icon">{getRoleIcon(user?.role)}</span>
                           {user?.role?.replace('-', ' ') || 'User'}
                         </div>
                       </div>
@@ -117,7 +130,7 @@ const Navigation = () => {
                       onClick={() => setUserMenuOpen(false)}
                     >
                       <span className="dropdown-icon">👤</span>
-                      Profile Settings
+                      My Profile
                     </Link>
                     
                     <Link 
@@ -126,7 +139,7 @@ const Navigation = () => {
                       onClick={() => setUserMenuOpen(false)}
                     >
                       <span className="dropdown-icon">⚙️</span>
-                      Preferences
+                      Settings
                     </Link>
 
                     <div className="dropdown-divider"></div>
@@ -188,6 +201,7 @@ const Navigation = () => {
                     className="user-role-badge"
                     style={{ backgroundColor: getRoleBadgeColor(user?.role) }}
                   >
+                    <span className="role-icon">{getRoleIcon(user?.role)}</span>
                     {user?.role?.replace('-', ' ') || 'User'}
                   </span>
                 </div>
@@ -198,35 +212,29 @@ const Navigation = () => {
               {/* Mobile Navigation Links */}
               <Link 
                 to="/dashboard" 
-                className="mobile-nav-link"
+                className="mobile-nav-link dashboard-link"
                 onClick={() => setIsMenuOpen(false)}
               >
                 <span className="nav-icon">📊</span>
                 Dashboard
               </Link>
-              <Link 
-                to="/courses" 
-                className="mobile-nav-link"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <span className="nav-icon">📚</span>
-                Courses
-              </Link>
-              <Link 
-                to="/reports" 
-                className="mobile-nav-link"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <span className="nav-icon">📝</span>
-                Reports
-              </Link>
+              
               <Link 
                 to="/profile" 
                 className="mobile-nav-link"
                 onClick={() => setIsMenuOpen(false)}
               >
                 <span className="nav-icon">👤</span>
-                Profile
+                My Profile
+              </Link>
+
+              <Link 
+                to="/settings" 
+                className="mobile-nav-link"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <span className="nav-icon">⚙️</span>
+                Settings
               </Link>
 
               <div className="mobile-nav-divider"></div>
