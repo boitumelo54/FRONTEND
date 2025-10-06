@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useAuth } from "../../contexts/AuthContext"
 import API from "../../api"
 import "../styles/lecture.css"
-
+import * as XLSX from "xlsx"
 
 const LecturerDashboard = () => {
   const [reports, setReports] = useState([])
@@ -41,6 +41,8 @@ const LecturerDashboard = () => {
   const [faculties, setFaculties] = useState([])
   const [programs, setPrograms] = useState([])
   const { user } = useAuth()
+  const [searchReports, setSearchReports] = useState("")
+  const [searchChallenges, setSearchChallenges] = useState("")
 
   useEffect(() => {
     fetchAssignments()
@@ -224,6 +226,75 @@ const LecturerDashboard = () => {
   }
 
   const myModules = getMyModules()
+
+  const exportReportsToExcel = () => {
+    if (reports.length === 0) {
+      alert("No reports to export")
+      return
+    }
+
+    const exportData = reports.map((report) => ({
+      Module: report.module_name,
+      Program: report.program_name,
+      Date: new Date(report.date_of_lecture).toLocaleDateString(),
+      Week: report.week_of_reporting,
+      "Student Name": report.student_name || "N/A",
+      "Student Number": report.student_number || "N/A",
+      Attendance: `${report.actual_students_present}/${report.total_registered_students}`,
+      Venue: report.venue,
+      Time: report.scheduled_time,
+      Topic: report.topic_taught,
+      "Learning Outcomes": report.learning_outcomes,
+      Recommendations: report.recommendations,
+      "Principal Feedback": report.principal_feedback || "No feedback yet",
+      Status: report.status,
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Reports")
+    XLSX.writeFile(workbook, `Lecturer_Reports_${new Date().toISOString().split("T")[0]}.xlsx`)
+  }
+
+  const exportChallengesToExcel = () => {
+    if (challenges.length === 0) {
+      alert("No challenges to export")
+      return
+    }
+
+    const exportData = challenges.map((challenge) => ({
+      Module: challenge.module_name,
+      Program: challenge.program_name,
+      Type: challenge.challenge_type,
+      Description: challenge.description,
+      Impact: challenge.impact,
+      "Proposed Solution": challenge.proposed_solution || "N/A",
+      Status: challenge.status,
+      Submitted: new Date(challenge.submitted_date).toLocaleDateString(),
+      "Admin Feedback": challenge.admin_feedback || "No feedback yet",
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Challenges")
+    XLSX.writeFile(workbook, `Lecturer_Challenges_${new Date().toISOString().split("T")[0]}.xlsx`)
+  }
+
+  const filteredReports = reports.filter(
+    (report) =>
+      report.module_name?.toLowerCase().includes(searchReports.toLowerCase()) ||
+      report.program_name?.toLowerCase().includes(searchReports.toLowerCase()) ||
+      report.topic_taught?.toLowerCase().includes(searchReports.toLowerCase()) ||
+      report.venue?.toLowerCase().includes(searchReports.toLowerCase()),
+  )
+
+  const filteredChallenges = challenges.filter(
+    (challenge) =>
+      challenge.module_name?.toLowerCase().includes(searchChallenges.toLowerCase()) ||
+      challenge.program_name?.toLowerCase().includes(searchChallenges.toLowerCase()) ||
+      challenge.challenge_type?.toLowerCase().includes(searchChallenges.toLowerCase()) ||
+      challenge.description?.toLowerCase().includes(searchChallenges.toLowerCase()),
+  )
 
   return (
     <div className="dashboard-container">
@@ -568,14 +639,32 @@ const LecturerDashboard = () => {
 
         {/* My Reports Section */}
         <div className="reports-section">
-          <h2>My Lecture Reports</h2>
-          {reports.length === 0 ? (
+          <div className="section-header">
+            <h2>My Lecture Reports</h2>
+            <div className="header-actions">
+              <input
+                type="text"
+                placeholder="Search reports..."
+                value={searchReports}
+                onChange={(e) => setSearchReports(e.target.value)}
+                className="search-input"
+              />
+              <button onClick={exportReportsToExcel} className="btn-export" disabled={reports.length === 0}>
+                📥 Export to Excel
+              </button>
+            </div>
+          </div>
+          {filteredReports.length === 0 ? (
             <div className="empty-state">
-              <p>No reports submitted yet. Click "New Report" to get started.</p>
+              <p>
+                {searchReports
+                  ? "No reports match your search."
+                  : 'No reports submitted yet. Click "New Report" to get started.'}
+              </p>
             </div>
           ) : (
             <div className="reports-grid">
-              {reports.map((report) => (
+              {filteredReports.map((report) => (
                 <div key={report.id} className="report-card">
                   <div className="report-header">
                     <h3>
@@ -637,19 +726,35 @@ const LecturerDashboard = () => {
         <div className="challenges-section">
           <div className="section-header">
             <h2>Teaching Challenges</h2>
-            {assignments.length > 0 && (
-              <button className="btn-secondary" onClick={() => setShowChallengeForm(true)}>
-                + Report New Challenge
+            <div className="header-actions">
+              <input
+                type="text"
+                placeholder="Search challenges..."
+                value={searchChallenges}
+                onChange={(e) => setSearchChallenges(e.target.value)}
+                className="search-input"
+              />
+              <button onClick={exportChallengesToExcel} className="btn-export" disabled={challenges.length === 0}>
+                📥 Export to Excel
               </button>
-            )}
+              {assignments.length > 0 && (
+                <button className="btn-secondary" onClick={() => setShowChallengeForm(true)}>
+                  + Report New Challenge
+                </button>
+              )}
+            </div>
           </div>
-          {challenges.length === 0 ? (
+          {filteredChallenges.length === 0 ? (
             <div className="empty-state">
-              <p>No challenges reported yet. Click "Report Challenge" to document any teaching challenges.</p>
+              <p>
+                {searchChallenges
+                  ? "No challenges match your search."
+                  : 'No challenges reported yet. Click "Report Challenge" to document any teaching challenges.'}
+              </p>
             </div>
           ) : (
             <div className="challenges-grid">
-              {challenges.map((challenge) => (
+              {filteredChallenges.map((challenge) => (
                 <div key={challenge.id} className="challenge-card">
                   <div className="challenge-header">
                     <h3>

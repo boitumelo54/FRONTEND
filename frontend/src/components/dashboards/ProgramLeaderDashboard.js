@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react"
 import API from "../../api"
 import "../styles/leader.css"
+import * as XLSX from "xlsx"
 
 const ProgramLeaderDashboard = () => {
-  const [activeTab, setActiveTab] = useState("overview")
+  const [activeTab, setActiveTab] = useState("programs")
   const [programs, setPrograms] = useState([])
   const [modules, setModules] = useState([])
   const [reports, setReports] = useState([])
@@ -47,6 +48,9 @@ const ProgramLeaderDashboard = () => {
     program_id: "",
     lecturer_id: "",
   })
+
+  // Search state
+  const [searchReports, setSearchReports] = useState("")
 
   // Fetch all data on component mount
   useEffect(() => {
@@ -251,6 +255,47 @@ const ProgramLeaderDashboard = () => {
     return modules.filter((module) => module.program_id == programId)
   }
 
+  // Excel export function for reports
+  const exportReportsToExcel = () => {
+    if (reports.length === 0) {
+      alert("No reports to export")
+      return
+    }
+
+    const exportData = reports.map((report) => ({
+      Program: report.program_name,
+      "Program Code": report.program_code,
+      Module: report.module_name,
+      Faculty: report.faculty_name,
+      Lecturer: report.lecturer_name,
+      Date: new Date(report.date_of_lecture).toLocaleDateString(),
+      Week: report.week_of_reporting,
+      Attendance: `${report.actual_students_present}/${report.total_registered_students}`,
+      Venue: report.venue,
+      Time: report.scheduled_time,
+      Topic: report.topic_taught,
+      "Learning Outcomes": report.learning_outcomes,
+      Recommendations: report.recommendations,
+      "Principal Feedback": report.principal_feedback || "No feedback yet",
+      Status: report.status,
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Reports")
+    XLSX.writeFile(workbook, `Program_Leader_Reports_${new Date().toISOString().split("T")[0]}.xlsx`)
+  }
+
+  // Filter function for reports
+  const filteredReports = reports.filter(
+    (report) =>
+      report.program_name?.toLowerCase().includes(searchReports.toLowerCase()) ||
+      report.module_name?.toLowerCase().includes(searchReports.toLowerCase()) ||
+      report.lecturer_name?.toLowerCase().includes(searchReports.toLowerCase()) ||
+      report.faculty_name?.toLowerCase().includes(searchReports.toLowerCase()) ||
+      report.topic_taught?.toLowerCase().includes(searchReports.toLowerCase()),
+  )
+
   if (loading && programs.length === 0) {
     return (
       <div className="dashboard-container">
@@ -262,63 +307,50 @@ const ProgramLeaderDashboard = () => {
   return (
     <div className="dashboard-container">
       <div className="dashboard-header">
-        <div className="header-content">
-          <h1>Program Leader Dashboard</h1>
-          <p>Manage programs, modules, assign lectures and monitor reports</p>
-        </div>
-        <div className="header-actions">
-          <button className="btn-secondary" onClick={() => setShowProgramForm(true)} disabled={loading}>
-            + Program
-          </button>
-          <button className="btn-secondary" onClick={() => setShowModuleForm(true)} disabled={loading}>
-            + Module
-          </button>
-          <button className="btn-primary" onClick={() => setShowAssignmentForm(true)} disabled={loading}>
-            + Assign Lecture
-          </button>
-        </div>
+        <h1>Program Leader Dashboard</h1>
+        <p>Manage programs, modules, assign lectures and monitor reports</p>
       </div>
 
       {/* Statistics Overview */}
-      <div className="stats-grid">
+      <div className="stats-overview">
         <div className="stat-card">
           <div className="stat-icon">📚</div>
-          <div className="stat-content">
+          <div className="stat-info">
             <h3>{stats.totalPrograms}</h3>
-            <p>Programs</p>
+            <p>Total Programs</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon">🏫</div>
-          <div className="stat-content">
+          <div className="stat-info">
             <h3>{stats.totalModules}</h3>
-            <p>Modules</p>
+            <p>Total Modules</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon">📊</div>
-          <div className="stat-content">
+          <div className="stat-info">
             <h3>{stats.totalReports}</h3>
-            <p>Reports</p>
+            <p>Total Reports</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon">👨‍🏫</div>
-          <div className="stat-content">
+          <div className="stat-info">
             <h3>{stats.totalAssignments}</h3>
-            <p>Assignments</p>
+            <p>Lecture Assignments</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon">👥</div>
-          <div className="stat-content">
+          <div className="stat-info">
             <h3>{stats.totalStudents}</h3>
-            <p>Students</p>
+            <p>Total Students</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon">👤</div>
-          <div className="stat-content">
+          <div className="stat-info">
             <h3>{stats.totalLecturers}</h3>
             <p>Lecturers</p>
           </div>
@@ -327,167 +359,80 @@ const ProgramLeaderDashboard = () => {
 
       <div className="dashboard-tabs">
         <button
-          className={`tab-button ${activeTab === "overview" ? "active" : ""}`}
-          onClick={() => setActiveTab("overview")}
-        >
-          📊 Overview
-        </button>
-        <button
-          className={`tab-button ${activeTab === "programs" ? "active" : ""}`}
+          className={`tab-button ${activeTab === "programs" ? "tab-active" : ""}`}
           onClick={() => setActiveTab("programs")}
         >
           📚 Programs
         </button>
         <button
-          className={`tab-button ${activeTab === "modules" ? "active" : ""}`}
+          className={`tab-button ${activeTab === "modules" ? "tab-active" : ""}`}
           onClick={() => setActiveTab("modules")}
         >
           🏫 Modules
         </button>
         <button
-          className={`tab-button ${activeTab === "assignments" ? "active" : ""}`}
+          className={`tab-button ${activeTab === "assignments" ? "tab-active" : ""}`}
           onClick={() => setActiveTab("assignments")}
         >
-          👨‍🏫 Assignments
+          👨‍🏫 Assign Lectures
         </button>
         <button
-          className={`tab-button ${activeTab === "reports" ? "active" : ""}`}
+          className={`tab-button ${activeTab === "reports" ? "tab-active" : ""}`}
           onClick={() => setActiveTab("reports")}
         >
-          📋 Reports
+          📊 Reports
+        </button>
+        <button
+          className={`tab-button ${activeTab === "monitoring" ? "tab-active" : ""}`}
+          onClick={() => setActiveTab("monitoring")}
+        >
+          📈 Monitoring
         </button>
       </div>
 
       <div className="dashboard-content">
-        {/* Overview Tab */}
-        {activeTab === "overview" && (
-          <div className="tab-content overview-tab">
-            <div className="activity-grid">
-              <div className="activity-column">
-                <h3>Recent Activity</h3>
-                <div className="activity-list">
-                  {reports.slice(0, 5).map((report) => (
-                    <div key={report.id} className="activity-item">
-                      <div className="activity-icon">📝</div>
-                      <div className="activity-content">
-                        <p>
-                          <strong>{report.lecturer_name}</strong> submitted report for {report.module_name}
-                        </p>
-                        <p>{new Date(report.created_at).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {reports.length === 0 && <p className="no-activity">No recent activity</p>}
-                </div>
-              </div>
-
-              <div className="activity-column">
-                <h3>Quick Stats</h3>
-                <div className="stats-grid" style={{gridTemplateColumns: '1fr'}}>
-                  <div className="stat-card">
-                    <div className="stat-icon">📈</div>
-                    <div className="stat-content">
-                      <h3>
-                        {stats.totalReports > 0 ? Math.round((stats.reviewedReports / stats.totalReports) * 100) : 0}%
-                      </h3>
-                      <p>Report Completion</p>
-                    </div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-icon">🎯</div>
-                    <div className="stat-content">
-                      <h3>
-                        {stats.totalAssignments > 0 ? Math.round((stats.totalAssignments / stats.totalModules) * 100) : 0}%
-                      </h3>
-                      <p>Module Coverage</p>
-                    </div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-icon">⚖️</div>
-                    <div className="stat-content">
-                      <h3>
-                        {stats.totalStudents > 0 ? Math.round(stats.totalStudents / stats.totalLecturers) : 0}
-                      </h3>
-                      <p>Student Ratio</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="quick-actions-section">
-              <h3>Quick Actions</h3>
-              <div className="quick-actions-grid">
-                <button className="quick-action-card" onClick={() => setShowProgramForm(true)}>
-                  <div className="action-icon">📚</div>
-                  <h3>Create Program</h3>
-                  <p>Add a new academic program</p>
-                </button>
-                <button className="quick-action-card" onClick={() => setShowModuleForm(true)}>
-                  <div className="action-icon">🏫</div>
-                  <h3>Create Module</h3>
-                  <p>Add a new course module</p>
-                </button>
-                <button className="quick-action-card" onClick={() => setShowAssignmentForm(true)}>
-                  <div className="action-icon">👨‍🏫</div>
-                  <h3>Assign Lecture</h3>
-                  <p>Assign lecturer to module</p>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Programs Tab */}
         {activeTab === "programs" && (
           <div className="tab-content">
             <div className="section-header">
-              <div>
-                <h2>Program Management</h2>
-                <p className="section-subtitle">Manage all academic programs and their details</p>
-              </div>
-              <div className="section-actions">
-                <button className="btn-primary" onClick={() => setShowProgramForm(true)} disabled={loading}>
-                  {loading ? "Loading..." : "+ Add Program"}
-                </button>
-              </div>
+              <h2>Program Management</h2>
+              <button className="btn-primary" onClick={() => setShowProgramForm(true)} disabled={loading}>
+                {loading ? "Loading..." : "+ Add Program"}
+              </button>
             </div>
 
-            {programs.length === 0 ? (
-              <div className="empty-state">
-                <p>No programs found. Create your first program to get started.</p>
-              </div>
-            ) : (
-              <div className="modules-grid">
-                {programs.map((program) => (
-                  <div key={program.id} className="module-card">
-                    <div className="module-header">
-                      <h3>{program.program_name}</h3>
-                      <span className="program-badge">{program.program_code}</span>
-                    </div>
-                    <div className="module-details">
-                      <p><strong>Faculty:</strong> {program.faculty_name || "N/A"}</p>
-                      <p><strong>Created By:</strong> {program.created_by_name}</p>
-                      <p><strong>Created:</strong> {new Date(program.created_at).toLocaleDateString()}</p>
-                    </div>
-                    <div className="module-stats">
-                      <div className="stat">
-                        <span className="stat-number">
-                          {modules.filter(m => m.program_id === program.id).length}
-                        </span>
-                        <span className="stat-label">Modules</span>
-                      </div>
-                      <div className="stat">
-                        <span className="stat-number">
-                          {assignments.filter(a => a.program_id === program.id).length}
-                        </span>
-                        <span className="stat-label">Assignments</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="table-container">
+              {programs.length === 0 ? (
+                <div className="empty-state">
+                  <p>No programs found. Create your first program to get started.</p>
+                </div>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Program Code</th>
+                      <th>Program Name</th>
+                      <th>Faculty</th>
+                      <th>Created By</th>
+                      <th>Created At</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {programs.map((program) => (
+                      <tr key={program.id}>
+                        <td>
+                          <strong>{program.program_code}</strong>
+                        </td>
+                        <td>{program.program_name}</td>
+                        <td>{program.faculty_name || "N/A"}</td>
+                        <td>{program.created_by_name}</td>
+                        <td>{new Date(program.created_at).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         )}
 
@@ -495,53 +440,46 @@ const ProgramLeaderDashboard = () => {
         {activeTab === "modules" && (
           <div className="tab-content">
             <div className="section-header">
-              <div>
-                <h2>Module Management</h2>
-                <p className="section-subtitle">Manage all course modules and student enrollment</p>
-              </div>
-              <div className="section-actions">
-                <button className="btn-primary" onClick={() => setShowModuleForm(true)} disabled={loading}>
-                  {loading ? "Loading..." : "+ Add Module"}
-                </button>
-              </div>
+              <h2>Module Management</h2>
+              <button className="btn-primary" onClick={() => setShowModuleForm(true)} disabled={loading}>
+                {loading ? "Loading..." : "+ Add Module"}
+              </button>
             </div>
 
-            {modules.length === 0 ? (
-              <div className="empty-state">
-                <p>No modules found. Create your first module to get started.</p>
-              </div>
-            ) : (
-              <div className="modules-grid">
-                {modules.map((module) => (
-                  <div key={module.id} className="module-card">
-                    <div className="module-header">
-                      <h3>{module.module_name}</h3>
-                      <span className={`status-badge ${assignments.some(a => a.module_id === module.id) ? 'status-present' : 'status-pending'}`}>
-                        {assignments.some(a => a.module_id === module.id) ? 'Assigned' : 'Unassigned'}
-                      </span>
-                    </div>
-                    <div className="module-details">
-                      <p><strong>Program:</strong> {module.program_name || "N/A"}</p>
-                      <p><strong>Faculty:</strong> {module.faculty_name || "N/A"}</p>
-                      <p><strong>Created By:</strong> {module.created_by_name}</p>
-                      <p><strong>Created:</strong> {new Date(module.created_at).toLocaleDateString()}</p>
-                    </div>
-                    <div className="module-stats">
-                      <div className="stat">
-                        <span className="stat-number">{module.total_registered_students}</span>
-                        <span className="stat-label">Students</span>
-                      </div>
-                      <div className="stat">
-                        <span className="stat-number">
-                          {reports.filter(r => r.module_id === module.id).length}
-                        </span>
-                        <span className="stat-label">Reports</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="table-container">
+              {modules.length === 0 ? (
+                <div className="empty-state">
+                  <p>No modules found. Create your first module to get started.</p>
+                </div>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Module Name</th>
+                      <th>Program</th>
+                      <th>Faculty</th>
+                      <th>Registered Students</th>
+                      <th>Created By</th>
+                      <th>Created At</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modules.map((module) => (
+                      <tr key={module.id}>
+                        <td>
+                          <strong>{module.module_name}</strong>
+                        </td>
+                        <td>{module.program_name || "N/A"}</td>
+                        <td>{module.faculty_name || "N/A"}</td>
+                        <td>{module.total_registered_students}</td>
+                        <td>{module.created_by_name}</td>
+                        <td>{new Date(module.created_at).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         )}
 
@@ -549,34 +487,132 @@ const ProgramLeaderDashboard = () => {
         {activeTab === "assignments" && (
           <div className="tab-content">
             <div className="section-header">
-              <div>
-                <h2>Lecture Assignments</h2>
-                <p className="section-subtitle">Manage lecturer assignments to modules</p>
-              </div>
-              <div className="section-actions">
-                <button className="btn-primary" onClick={() => setShowAssignmentForm(true)} disabled={loading}>
-                  {loading ? "Loading..." : "+ Assign Lecture"}
+              <h2>Lecture Assignments</h2>
+              <button className="btn-primary" onClick={() => setShowAssignmentForm(true)} disabled={loading}>
+                {loading ? "Loading..." : "+ Assign Lecture"}
+              </button>
+            </div>
+
+            <div className="table-container">
+              {assignments.length === 0 ? (
+                <div className="empty-state">
+                  <p>No lecture assignments found. Assign your first lecture to get started.</p>
+                </div>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Module</th>
+                      <th>Program</th>
+                      <th>Lecturer</th>
+                      <th>Assigned By</th>
+                      <th>Date Assigned</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assignments.map((assignment) => (
+                      <tr key={assignment.id}>
+                        <td>
+                          <strong>{assignment.module_name}</strong>
+                        </td>
+                        <td>
+                          <div>
+                            <strong>{assignment.program_code}</strong>
+                            <div>{assignment.program_name}</div>
+                          </div>
+                        </td>
+                        <td>{assignment.lecturer_name}</td>
+                        <td>{assignment.assigned_by_name}</td>
+                        <td>{new Date(assignment.assigned_at).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Reports Tab */}
+        {activeTab === "reports" && (
+          <div className="tab-content">
+            <div className="section-header">
+              <h2>All Lecture Reports</h2>
+              <div className="header-actions">
+                <input
+                  type="text"
+                  placeholder="Search reports..."
+                  value={searchReports}
+                  onChange={(e) => setSearchReports(e.target.value)}
+                  className="search-input"
+                />
+                <button onClick={exportReportsToExcel} className="btn-export" disabled={reports.length === 0}>
+                  📥 Export to Excel
                 </button>
+                <span className="report-count">Total: {filteredReports.length} reports</span>
               </div>
             </div>
 
-            {assignments.length === 0 ? (
+            {filteredReports.length === 0 ? (
               <div className="empty-state">
-                <p>No lecture assignments found. Assign your first lecture to get started.</p>
+                <p>
+                  {searchReports
+                    ? "No reports match your search."
+                    : "No lecture reports found. Reports will appear here once submitted by lecturers."}
+                </p>
               </div>
             ) : (
-              <div className="assignments-grid">
-                {assignments.map((assignment) => (
-                  <div key={assignment.id} className="assignment-card">
-                    <div className="assignment-header">
-                      <h3>{assignment.module_name}</h3>
-                      <span className="program-badge">{assignment.program_code}</span>
+              <div className="reports-grid">
+                {filteredReports.map((report) => (
+                  <div key={report.id} className="report-card">
+                    <div className="report-header">
+                      <h3>
+                        {report.program_name} ({report.program_code})
+                      </h3>
+                      <span className={`status-badge status-${report.status}`}>{report.status}</span>
                     </div>
-                    <div className="assignment-details">
-                      <p><strong>Lecturer:</strong> {assignment.lecturer_name}</p>
-                      <p><strong>Program:</strong> {assignment.program_name}</p>
-                      <p><strong>Assigned By:</strong> {assignment.assigned_by_name}</p>
-                      <p><strong>Date Assigned:</strong> {new Date(assignment.assigned_at).toLocaleDateString()}</p>
+                    <div className="report-details">
+                      <p>
+                        <strong>Lecturer:</strong> {report.lecturer_name}
+                      </p>
+                      <p>
+                        <strong>Module:</strong> {report.module_name}
+                      </p>
+                      <p>
+                        <strong>Faculty:</strong> {report.faculty_name}
+                      </p>
+                      <p>
+                        <strong>Date:</strong> {new Date(report.date_of_lecture).toLocaleDateString()}
+                      </p>
+                      <p>
+                        <strong>Week:</strong> {report.week_of_reporting}
+                      </p>
+                      <p>
+                        <strong>Attendance:</strong> {report.actual_students_present}/{report.total_registered_students}
+                      </p>
+                      <p>
+                        <strong>Venue:</strong> {report.venue}
+                      </p>
+                      <p>
+                        <strong>Time:</strong> {report.scheduled_time}
+                      </p>
+                      {report.principal_feedback && (
+                        <div className="feedback-section">
+                          <strong>Principal Feedback:</strong>
+                          <p>{report.principal_feedback}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="report-topics">
+                      <p>
+                        <strong>Topic Taught:</strong> {report.topic_taught}
+                      </p>
+                      <p>
+                        <strong>Learning Outcomes:</strong> {report.learning_outcomes}
+                      </p>
+                      <p>
+                        <strong>Recommendations:</strong> {report.recommendations}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -585,66 +621,71 @@ const ProgramLeaderDashboard = () => {
           </div>
         )}
 
-        {/* Reports Tab */}
-        {activeTab === "reports" && (
+        {/* Monitoring Tab */}
+        {activeTab === "monitoring" && (
           <div className="tab-content">
-            <div className="section-header">
-              <div>
-                <h2>Lecture Reports</h2>
-                <p className="section-subtitle">Review all submitted lecture reports</p>
+            <h2>Monitoring Dashboard</h2>
+
+            <div className="monitoring-grid">
+              <div className="monitoring-card">
+                <h3>Quick Overview</h3>
+                <div className="overview-stats">
+                  <div className="overview-item">
+                    <span className="label">Programs Created:</span>
+                    <span className="value">{stats.totalPrograms}</span>
+                  </div>
+                  <div className="overview-item">
+                    <span className="label">Modules Managed:</span>
+                    <span className="value">{stats.totalModules}</span>
+                  </div>
+                  <div className="overview-item">
+                    <span className="label">Active Assignments:</span>
+                    <span className="value">{stats.totalAssignments}</span>
+                  </div>
+                  <div className="overview-item">
+                    <span className="label">Total Students:</span>
+                    <span className="value">{stats.totalStudents}</span>
+                  </div>
+                  <div className="overview-item">
+                    <span className="label">Report Completion:</span>
+                    <span className="value">
+                      {stats.totalReports > 0 ? Math.round((stats.reviewedReports / stats.totalReports) * 100) : 0}%
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="report-filters">
-                <span>Total: {reports.length} reports</span>
+
+              <div className="monitoring-card">
+                <h3>Recent Activity</h3>
+                <div className="activity-list">
+                  {reports.slice(0, 5).map((report) => (
+                    <div key={report.id} className="activity-item">
+                      <div className="activity-dot"></div>
+                      <div className="activity-content">
+                        <p>
+                          <strong>{report.lecturer_name}</strong> submitted report for {report.program_name}
+                        </p>
+                        <span className="activity-time">{new Date(report.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {reports.length === 0 && <p className="no-activity">No recent activity</p>}
+                </div>
+              </div>
+
+              <div className="monitoring-card">
+                <h3>Student Distribution</h3>
+                <div className="student-distribution">
+                  {modules.map((module) => (
+                    <div key={module.id} className="distribution-item">
+                      <span className="module-name">{module.module_name}</span>
+                      <span className="student-count">{module.total_registered_students} students</span>
+                    </div>
+                  ))}
+                  {modules.length === 0 && <p className="no-data">No module data available</p>}
+                </div>
               </div>
             </div>
-
-            {reports.length === 0 ? (
-              <div className="empty-state">
-                <p>No lecture reports found. Reports will appear here once submitted by lecturers.</p>
-              </div>
-            ) : (
-              <div className="reports-grid">
-                {reports.map((report) => (
-                  <div key={report.id} className="report-card">
-                    <div className="report-header">
-                      <h3>
-                        {report.program_name} ({report.program_code})
-                      </h3>
-                      <span className={`status-badge status-${report.status}`}>{report.status}</span>
-                    </div>
-                    <div className="content-section">
-                      <h4>Basic Information</h4>
-                      <p><strong>Lecturer:</strong> {report.lecturer_name}</p>
-                      <p><strong>Module:</strong> {report.module_name}</p>
-                      <p><strong>Faculty:</strong> {report.faculty_name}</p>
-                      <p><strong>Date:</strong> {new Date(report.date_of_lecture).toLocaleDateString()}</p>
-                      <p><strong>Week:</strong> {report.week_of_reporting}</p>
-                      <p><strong>Attendance:</strong> {report.actual_students_present}/{report.total_registered_students}</p>
-                      <p><strong>Venue:</strong> {report.venue}</p>
-                      <p><strong>Time:</strong> {report.scheduled_time}</p>
-                    </div>
-                    <div className="content-section">
-                      <h4>Topic Taught</h4>
-                      <p>{report.topic_taught}</p>
-                    </div>
-                    <div className="content-section">
-                      <h4>Learning Outcomes</h4>
-                      <p>{report.learning_outcomes}</p>
-                    </div>
-                    <div className="content-section">
-                      <h4>Recommendations</h4>
-                      <p>{report.recommendations}</p>
-                    </div>
-                    {report.principal_feedback && (
-                      <div className="content-section">
-                        <h4>Principal Feedback</h4>
-                        <p>{report.principal_feedback}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         )}
       </div>

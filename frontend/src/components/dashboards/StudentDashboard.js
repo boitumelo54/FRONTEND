@@ -1,9 +1,9 @@
 "use client"
 
-// Updated StudentDashboard.js
 import { useState, useEffect } from "react"
 import API from "../../api"
 import "../styles/student.css"
+import * as XLSX from "xlsx"
 
 const StudentDashboard = () => {
   const [reports, setReports] = useState([])
@@ -25,6 +25,8 @@ const StudentDashboard = () => {
     description: "",
     priority: "medium",
   })
+  const [searchReports, setSearchReports] = useState("")
+  const [searchChallenges, setSearchChallenges] = useState("")
 
   useEffect(() => {
     fetchStudentData()
@@ -168,6 +170,72 @@ const StudentDashboard = () => {
     }
   }
 
+  const exportReportsToExcel = () => {
+    if (reports.length === 0) {
+      alert("No reports to export")
+      return
+    }
+
+    const exportData = reports.map((report) => ({
+      "Module Name": report.module_name,
+      "Program Name": report.program_name,
+      "Program Code": report.program_code,
+      Lecturer: report.lecturer_name,
+      Date: new Date(report.date_of_lecture).toLocaleDateString(),
+      Week: report.week_of_reporting,
+      Attendance: `${report.actual_students_present}/${report.total_registered_students}`,
+      Venue: report.venue,
+      Topic: report.topic_taught,
+      "Learning Outcomes": report.learning_outcomes,
+      Recommendations: report.recommendations,
+      Status: report.status,
+      "Student Name": report.student_name || "Not signed",
+      "Student Number": report.student_number || "Not signed",
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Reports")
+    XLSX.writeFile(workbook, `Student_Reports_${new Date().toISOString().split("T")[0]}.xlsx`)
+  }
+
+  const exportChallengesToExcel = () => {
+    if (challenges.length === 0) {
+      alert("No challenges to export")
+      return
+    }
+
+    const exportData = challenges.map((challenge) => ({
+      Title: challenge.title,
+      Module: challenge.module_name,
+      Description: challenge.description,
+      Priority: challenge.priority,
+      Status: challenge.status,
+      Submitted: new Date(challenge.created_at).toLocaleDateString(),
+      Feedback: challenge.feedback || "No feedback yet",
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Challenges")
+    XLSX.writeFile(workbook, `Student_Challenges_${new Date().toISOString().split("T")[0]}.xlsx`)
+  }
+
+  const filteredReports = reports.filter(
+    (report) =>
+      report.module_name?.toLowerCase().includes(searchReports.toLowerCase()) ||
+      report.program_name?.toLowerCase().includes(searchReports.toLowerCase()) ||
+      report.lecturer_name?.toLowerCase().includes(searchReports.toLowerCase()) ||
+      report.topic_taught?.toLowerCase().includes(searchReports.toLowerCase()),
+  )
+
+  const filteredChallenges = challenges.filter(
+    (challenge) =>
+      challenge.title?.toLowerCase().includes(searchChallenges.toLowerCase()) ||
+      challenge.module_name?.toLowerCase().includes(searchChallenges.toLowerCase()) ||
+      challenge.description?.toLowerCase().includes(searchChallenges.toLowerCase()),
+  )
+
   if (loading) return <div className="dashboard-loading">Loading your dashboard...</div>
 
   return (
@@ -177,7 +245,6 @@ const StudentDashboard = () => {
         <p>View your modules, monitor lecture reports, submit challenges and provide ratings</p>
       </div>
 
-      {/* Debug info - remove this section after testing */}
       {process.env.NODE_ENV === "development" && studentInfo.user && (
         <div
           style={{
@@ -208,7 +275,6 @@ const StudentDashboard = () => {
         </div>
       )}
 
-      {/* Dashboard Tabs */}
       <div className="dashboard-tabs">
         <button
           className={`tab-button ${activeTab === "modules" ? "tab-active" : ""}`}
@@ -231,7 +297,6 @@ const StudentDashboard = () => {
       </div>
 
       <div className="dashboard-content">
-        {/* My Modules Tab */}
         {activeTab === "modules" && (
           <div className="tab-content">
             <div className="section-header">
@@ -317,21 +382,36 @@ const StudentDashboard = () => {
           </div>
         )}
 
-        {/* Lecture Reports Tab */}
         {activeTab === "reports" && (
           <div className="tab-content">
             <div className="section-header">
               <h2>Lecture Reports</h2>
               <p className="section-subtitle">Monitor lecture reports and provide ratings</p>
+              <div className="header-actions">
+                <input
+                  type="text"
+                  placeholder="Search reports..."
+                  value={searchReports}
+                  onChange={(e) => setSearchReports(e.target.value)}
+                  className="search-input"
+                />
+                <button onClick={exportReportsToExcel} className="btn-export" disabled={reports.length === 0}>
+                  📥 Export to Excel
+                </button>
+              </div>
             </div>
 
-            {reports.length === 0 ? (
+            {filteredReports.length === 0 ? (
               <div className="empty-state">
-                <p>No lecture reports found. Reports will appear here once submitted by lecturers.</p>
+                <p>
+                  {searchReports
+                    ? "No reports match your search."
+                    : "No lecture reports found. Reports will appear here once submitted by lecturers."}
+                </p>
               </div>
             ) : (
               <div className="reports-grid">
-                {reports.map((report) => (
+                {filteredReports.map((report) => (
                   <div key={report.id} className="report-card">
                     <div className="report-header">
                       <h3>
@@ -381,8 +461,6 @@ const StudentDashboard = () => {
                       </div>
                     )}
 
-                    {/* Students should not see principal feedback */}
-
                     <div className="report-actions">
                       {report.student_name && report.student_number ? (
                         <div className="attendance-signed">
@@ -406,7 +484,6 @@ const StudentDashboard = () => {
           </div>
         )}
 
-        {/* Challenges Tab */}
         {activeTab === "challenges" && (
           <div className="tab-content">
             <div className="challenges-section">
@@ -417,7 +494,6 @@ const StudentDashboard = () => {
                 </p>
               </div>
 
-              {/* Submit Challenge Form */}
               <div className="challenge-form-section">
                 <h3>Report New Challenge</h3>
                 <form onSubmit={submitChallenge} className="challenge-form">
@@ -481,16 +557,33 @@ const StudentDashboard = () => {
                 </form>
               </div>
 
-              {/* Challenges List */}
               <div className="challenges-list">
-                <h3>My Submitted Challenges</h3>
-                {challenges.length === 0 ? (
+                <div className="section-header">
+                  <h3>My Submitted Challenges</h3>
+                  <div className="header-actions">
+                    <input
+                      type="text"
+                      placeholder="Search challenges..."
+                      value={searchChallenges}
+                      onChange={(e) => setSearchChallenges(e.target.value)}
+                      className="search-input"
+                    />
+                    <button onClick={exportChallengesToExcel} className="btn-export" disabled={challenges.length === 0}>
+                      📥 Export to Excel
+                    </button>
+                  </div>
+                </div>
+                {filteredChallenges.length === 0 ? (
                   <div className="empty-state">
-                    <p>No challenges submitted yet. Use the form above to report your first challenge.</p>
+                    <p>
+                      {searchChallenges
+                        ? "No challenges match your search."
+                        : "No challenges submitted yet. Use the form above to report your first challenge."}
+                    </p>
                   </div>
                 ) : (
                   <div className="challenges-grid">
-                    {challenges.map((challenge) => (
+                    {filteredChallenges.map((challenge) => (
                       <div key={challenge.id} className={`challenge-card priority-${challenge.priority}`}>
                         <div className="challenge-header">
                           <h4>{challenge.title}</h4>

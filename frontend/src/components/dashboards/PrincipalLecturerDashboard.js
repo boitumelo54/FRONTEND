@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import API from "../../api"
 import "../styles/principal.css"
+import * as XLSX from "xlsx"
 
 const PrincipalLecturerDashboard = () => {
   const [reports, setReports] = useState([])
@@ -15,6 +16,8 @@ const PrincipalLecturerDashboard = () => {
     challenges: true,
     ratings: true,
   })
+  const [searchReports, setSearchReports] = useState("")
+  const [searchChallenges, setSearchChallenges] = useState("")
 
   useEffect(() => {
     fetchReports()
@@ -158,6 +161,77 @@ const PrincipalLecturerDashboard = () => {
   const pendingChallenges = challenges.filter((challenge) => challenge.status === "pending")
   const resolvedChallenges = challenges.filter((challenge) => challenge.status === "resolved")
 
+  const exportReportsToExcel = () => {
+    if (reports.length === 0) {
+      alert("No reports to export")
+      return
+    }
+
+    const exportData = reports.map((report) => ({
+      Module: report.module_name,
+      Program: report.program_name,
+      "Program Code": report.program_code,
+      Lecturer: report.lecturer_name,
+      Date: new Date(report.date_of_lecture).toLocaleDateString(),
+      Week: report.week_of_reporting,
+      Attendance: `${report.actual_students_present}/${report.total_registered_students}`,
+      Venue: report.venue,
+      Topic: report.topic_taught,
+      "Learning Outcomes": report.learning_outcomes,
+      Recommendations: report.recommendations,
+      "Principal Feedback": report.principal_feedback || "No feedback yet",
+      Status: report.status,
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Reports")
+    XLSX.writeFile(workbook, `Principal_Reports_${new Date().toISOString().split("T")[0]}.xlsx`)
+  }
+
+  const exportChallengesToExcel = () => {
+    if (challenges.length === 0) {
+      alert("No challenges to export")
+      return
+    }
+
+    const exportData = challenges.map((challenge) => ({
+      Module: challenge.module_name,
+      Program: challenge.program_name,
+      "Program Code": challenge.program_code,
+      Type: challenge.challenge_type,
+      Lecturer: challenge.lecturer_name,
+      Description: challenge.description,
+      Impact: challenge.impact,
+      "Proposed Solution": challenge.proposed_solution || "N/A",
+      Status: challenge.status,
+      Submitted: new Date(challenge.submitted_date).toLocaleDateString(),
+      "Admin Feedback": challenge.admin_feedback || "No feedback yet",
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Challenges")
+    XLSX.writeFile(workbook, `Principal_Challenges_${new Date().toISOString().split("T")[0]}.xlsx`)
+  }
+
+  const filteredReports = reports.filter(
+    (report) =>
+      report.module_name?.toLowerCase().includes(searchReports.toLowerCase()) ||
+      report.program_name?.toLowerCase().includes(searchReports.toLowerCase()) ||
+      report.lecturer_name?.toLowerCase().includes(searchReports.toLowerCase()) ||
+      report.topic_taught?.toLowerCase().includes(searchReports.toLowerCase()),
+  )
+
+  const filteredChallenges = challenges.filter(
+    (challenge) =>
+      challenge.module_name?.toLowerCase().includes(searchChallenges.toLowerCase()) ||
+      challenge.program_name?.toLowerCase().includes(searchChallenges.toLowerCase()) ||
+      challenge.lecturer_name?.toLowerCase().includes(searchChallenges.toLowerCase()) ||
+      challenge.challenge_type?.toLowerCase().includes(searchChallenges.toLowerCase()) ||
+      challenge.description?.toLowerCase().includes(searchChallenges.toLowerCase()),
+  )
+
   return (
     <div className="dashboard-container">
       <div className="dashboard-header">
@@ -242,93 +316,44 @@ const PrincipalLecturerDashboard = () => {
 
         {/* Challenges Section */}
         <div className="challenges-section">
-          <h2>Current Challenges</h2>
+          <div className="section-header">
+            <h2>Current Challenges</h2>
+            <div className="header-actions">
+              <input
+                type="text"
+                placeholder="Search challenges..."
+                value={searchChallenges}
+                onChange={(e) => setSearchChallenges(e.target.value)}
+                className="search-input"
+              />
+              <button onClick={exportChallengesToExcel} className="btn-export" disabled={challenges.length === 0}>
+                📥 Export to Excel
+              </button>
+            </div>
+          </div>
           {loading.challenges ? (
             <div className="loading">Loading challenges...</div>
-          ) : challenges.length === 0 ? (
+          ) : filteredChallenges.length === 0 ? (
             <div className="no-data">
-              <p>No challenges reported</p>
+              <p>{searchChallenges ? "No challenges match your search." : "No challenges reported"}</p>
             </div>
           ) : (
             <div className="challenges-tabs">
               <div className="tab-content">
-                <h3>Pending Challenges ({pendingChallenges.length})</h3>
-                {pendingChallenges.length === 0 ? (
+                <h3>Pending Challenges ({filteredChallenges.filter((c) => c.status === "pending").length})</h3>
+                {filteredChallenges.filter((c) => c.status === "pending").length === 0 ? (
                   <div className="no-data">
                     <p>No pending challenges</p>
                   </div>
                 ) : (
                   <div className="challenges-grid">
-                    {pendingChallenges.map((challenge) => (
-                      <div key={challenge.id} className="challenge-card pending">
-                        <div className="challenge-header">
-                          <h3>{challenge.challenge_type}</h3>
-                          <span className={`status-badge status-${challenge.status}`}>{challenge.status}</span>
-                        </div>
-
-                        <div className="challenge-details">
-                          <p>
-                            <strong>Module:</strong> {challenge.module_name}
-                          </p>
-                          <p>
-                            <strong>Program:</strong> {challenge.program_name} ({challenge.program_code})
-                          </p>
-                          <p>
-                            <strong>Reported By:</strong> {challenge.lecturer_name}
-                          </p>
-                          <p>
-                            <strong>Date Reported:</strong> {new Date(challenge.submitted_date).toLocaleDateString()}
-                          </p>
-                          <p>
-                            <strong>Description:</strong>
-                          </p>
-                          <div className="challenge-description">{challenge.description}</div>
-                          <p>
-                            <strong>Impact:</strong> {challenge.impact}
-                          </p>
-                          {challenge.proposed_solution && (
-                            <p>
-                              <strong>Proposed Solution:</strong> {challenge.proposed_solution}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="challenge-actions">
-                          <button
-                            className="btn-resolve"
-                            onClick={() =>
-                              updateChallengeStatus(
-                                challenge.id,
-                                "resolved",
-                                "Challenge resolved by principal lecturer",
-                              )
-                            }
-                          >
-                            Mark as Resolved
-                          </button>
-                          <button
-                            className="btn-secondary"
-                            onClick={() =>
-                              updateChallengeStatus(challenge.id, "in_progress", "Under review by principal lecturer")
-                            }
-                          >
-                            Mark In Progress
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {resolvedChallenges.length > 0 && (
-                  <>
-                    <h3>Resolved Challenges ({resolvedChallenges.length})</h3>
-                    <div className="challenges-grid">
-                      {resolvedChallenges.slice(0, 3).map((challenge) => (
-                        <div key={challenge.id} className="challenge-card resolved">
+                    {filteredChallenges
+                      .filter((c) => c.status === "pending")
+                      .map((challenge) => (
+                        <div key={challenge.id} className="challenge-card pending">
                           <div className="challenge-header">
                             <h3>{challenge.challenge_type}</h3>
-                            <span className="status-badge status-resolved">Resolved</span>
+                            <span className={`status-badge status-${challenge.status}`}>{challenge.status}</span>
                           </div>
 
                           <div className="challenge-details">
@@ -336,19 +361,87 @@ const PrincipalLecturerDashboard = () => {
                               <strong>Module:</strong> {challenge.module_name}
                             </p>
                             <p>
+                              <strong>Program:</strong> {challenge.program_name} ({challenge.program_code})
+                            </p>
+                            <p>
                               <strong>Reported By:</strong> {challenge.lecturer_name}
                             </p>
                             <p>
-                              <strong>Resolved On:</strong> {new Date(challenge.resolved_date).toLocaleDateString()}
+                              <strong>Date Reported:</strong> {new Date(challenge.submitted_date).toLocaleDateString()}
                             </p>
-                            {challenge.admin_feedback && (
+                            <p>
+                              <strong>Description:</strong>
+                            </p>
+                            <div className="challenge-description">{challenge.description}</div>
+                            <p>
+                              <strong>Impact:</strong> {challenge.impact}
+                            </p>
+                            {challenge.proposed_solution && (
                               <p>
-                                <strong>Admin Feedback:</strong> {challenge.admin_feedback}
+                                <strong>Proposed Solution:</strong> {challenge.proposed_solution}
                               </p>
                             )}
                           </div>
+
+                          <div className="challenge-actions">
+                            <button
+                              className="btn-resolve"
+                              onClick={() =>
+                                updateChallengeStatus(
+                                  challenge.id,
+                                  "resolved",
+                                  "Challenge resolved by principal lecturer",
+                                )
+                              }
+                            >
+                              Mark as Resolved
+                            </button>
+                            <button
+                              className="btn-secondary"
+                              onClick={() =>
+                                updateChallengeStatus(challenge.id, "in_progress", "Under review by principal lecturer")
+                              }
+                            >
+                              Mark In Progress
+                            </button>
+                          </div>
                         </div>
                       ))}
+                  </div>
+                )}
+
+                {filteredChallenges.filter((c) => c.status === "resolved").length > 0 && (
+                  <>
+                    <h3>Resolved Challenges ({filteredChallenges.filter((c) => c.status === "resolved").length})</h3>
+                    <div className="challenges-grid">
+                      {filteredChallenges
+                        .filter((c) => c.status === "resolved")
+                        .slice(0, 3)
+                        .map((challenge) => (
+                          <div key={challenge.id} className="challenge-card resolved">
+                            <div className="challenge-header">
+                              <h3>{challenge.challenge_type}</h3>
+                              <span className="status-badge status-resolved">Resolved</span>
+                            </div>
+
+                            <div className="challenge-details">
+                              <p>
+                                <strong>Module:</strong> {challenge.module_name}
+                              </p>
+                              <p>
+                                <strong>Reported By:</strong> {challenge.lecturer_name}
+                              </p>
+                              <p>
+                                <strong>Resolved On:</strong> {new Date(challenge.resolved_date).toLocaleDateString()}
+                              </p>
+                              {challenge.admin_feedback && (
+                                <p>
+                                  <strong>Admin Feedback:</strong> {challenge.admin_feedback}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                     </div>
                   </>
                 )}
@@ -359,16 +452,30 @@ const PrincipalLecturerDashboard = () => {
 
         {/* Reports Section */}
         <div className="reports-section">
-          <h2>Lecture Reports for Review</h2>
+          <div className="section-header">
+            <h2>Lecture Reports for Review</h2>
+            <div className="header-actions">
+              <input
+                type="text"
+                placeholder="Search reports..."
+                value={searchReports}
+                onChange={(e) => setSearchReports(e.target.value)}
+                className="search-input"
+              />
+              <button onClick={exportReportsToExcel} className="btn-export" disabled={reports.length === 0}>
+                📥 Export to Excel
+              </button>
+            </div>
+          </div>
           {loading.reports ? (
             <div className="loading">Loading reports...</div>
-          ) : reports.length === 0 ? (
+          ) : filteredReports.length === 0 ? (
             <div className="no-data">
-              <p>No reports available for review</p>
+              <p>{searchReports ? "No reports match your search." : "No reports available for review"}</p>
             </div>
           ) : (
             <div className="reports-grid">
-              {reports.map((report) => (
+              {filteredReports.map((report) => (
                 <div key={report.id} className="report-card">
                   <div className="report-header">
                     <h3>{report.module_name}</h3>
